@@ -1,0 +1,246 @@
+"Analisis de activos por caracterisitcas individuales para ver si son buena compra a mediano plazo"
+
+#Periodo de relevancia  1-10-2024 hasta 21-07-2025
+
+#periodo de analisis 4/5 de año o 80% de cobertura de un año 200 dias de mercado
+#analisis de rendimiento anualizada 
+#analisis de volatilidad anualizada 
+#distribucion de los datos
+#simetria de los rendimientos
+#tamaño de las colas cuanto outliers positivos y negativos puede haber
+
+###################### Listado de activos a analizar  #########################
+
+activo_1 = 'GENTERA'  #activo 1  /  servicios financieros 
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20GENTERA.csv"
+
+activo_2 = 'WALMEX'   #activo 2  / consumo frecuente
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20WALMEX.csv"
+
+activo_3 = 'SOXL'     #activo 3  / tecnologia , semiconductores
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20SOXL.csv"
+
+"benchmarks"      #############################################################
+
+"NAFTRAC"   #equity nacional
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20NAFTRACISHRS.csv"
+
+"SPY"   #equity extranjero
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20SPY.csv"
+
+"dolar-peso"
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20USD_MXN.csv"
+
+################################  Librerias ##################################
+import numpy as np 
+import pandas as pd 
+import matplotlib.pyplot as plt 
+import scipy.stats as st
+import os
+import math #para calcular logartimo o tambien se puede usar numpy
+
+# URL raw del archivo CSV en GitHub
+datos =  "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20WALMEX.csv"
+
+ric = "WALMEX" #poner el nombre del activo que se va usar 
+
+# Leer el archivo CSV directamente desde GitHub
+raw_data = pd.read_csv(datos)
+raw_data.head()
+raw_data.shape
+raw_data.tail()
+
+
+#mu */- 1.64 * sigma para  90% confiaza
+#mu +/- 1.96 * sigma para  95% confianza
+
+###############################################################################
+"Creacion de un nuevo data frame con columnas para hacer la serie de tiempo"
+
+#creacion del data frame y los vectores de precios para el rendimiento
+t = pd.DataFrame()  # Crear un data frame vacio , para guardar las columnas que se crearan
+
+# Proceso de datos para los calculos
+#si voy a meter una accion americana o extrangera cambiar Fecha a / Date  y Cierre a / Close
+t["date"] = pd.to_datetime(raw_data["Fecha"], dayfirst=True )  # Convertir la columna "Date" a serie de tiempo
+t["close"] = raw_data["Cierre"]  # Asignar la columna "Close"
+t = t.sort_values(by="date", ascending=True)  # Ordenar por fecha
+t["close_previous"] = t["close"].shift(1)  # Crear columna del cierre anterior
+
+
+"Formas de Calcular el rendimiento"   #########################################
+#t["return_close"] = t["close"] / t["close_previous"] - 1 #rendimiento en base a (P1 / P0)
+t["return_close"] =  np.log(t["close"] / t["close_previous"]) #rendimiento en base a log(P1/P0)
+#t["return_close"] = raw_data["Cierre"].pct_change()  #rendimiento en base a ((P1 - P0 )/P0)-1
+
+t = t.dropna()  # Eliminar filas con valores NaN
+t = t.reset_index(drop=True)  # Reiniciar el i­ndice
+
+######################## Funcion del objeto simulador #########################
+
+class SimulationInputs:
+    def __init__(self):
+        self.df = None
+        self.scale = None
+        self.mean = None
+        self.std = None
+        self.rv_type = None
+        self.size = None
+        self.decimals = None
+
+class Simulator:
+    # Constructor
+    def __init__(self, inputs):
+        self.inputs = inputs
+        self.str_title = None
+        self.vector = None
+        self.mean = None
+        self.volatility = None
+        self.skewness = None
+        self.kurtosis = None
+        self.jb_stat = None
+        self.p_value = None
+        self.is_normal = None
+        
+    def generate_vector(self):
+        self.str_title = self.inputs.rv_type
+        if self.inputs.rv_type == 'standard_normal':
+            self.vector = np.random.standard_normal(self.inputs.size)
+        elif self.inputs.rv_type == 'normal':
+            self.vector = np.random.normal(self.inputs.mean, self.inputs.std, self.inputs.size)
+        elif self.inputs.rv_type == 'student':
+            self.vector = np.random.standard_t(df=self.inputs.df, size=self.inputs.size)
+            self.str_title += f' df={self.inputs.df}'
+        elif self.inputs.rv_type == 'uniform':
+            self.vector = np.random.uniform(size=self.inputs.size)
+        elif self.inputs.rv_type == 'exponential':
+            self.vector = np.random.exponential(scale=self.inputs.scale, size=self.inputs.size)
+            self.str_title += f' scale={self.inputs.scale}'
+        elif self.inputs.rv_type == 'chi-squared':
+            self.vector = np.random.chisquare(df=self.inputs.df, size=self.inputs.size)
+            self.str_title += f' df={self.inputs.df}'
+            
+    def compute_stats(self):
+        self.mean = st.tmean(self.vector)
+        self.volatility = st.tstd(self.vector)
+        self.skewness = st.skew(self.vector)
+        self.kurtosis = st.kurtosis(self.vector)
+        self.jb_stat = self.inputs.size / 6 * (self.skewness**2 + 1/4 * self.kurtosis**2)
+        self.p_value = 1 - st.chi2.cdf(self.jb_stat, df=2)
+        self.is_normal = (self.p_value > 0.05)  # Equivalente a jb < 6
+        
+    def plot(self):
+        self.str_title += f'\nmean={np.round(self.mean, self.inputs.decimals)} | volatility={np.round(self.volatility, self.inputs.decimals)}' \
+                          f'\nskewness={np.round(self.skewness, self.inputs.decimals)} | kurtosis={np.round(self.kurtosis, self.inputs.decimals)}' \
+                          f'\nJB stat={np.round(self.jb_stat, self.inputs.decimals)} | p-value={np.round(self.p_value, self.inputs.decimals)}' \
+                          f'\nis_normal={self.is_normal}'
+        plt.figure()
+        plt.hist(self.vector, bins=100)
+        plt.title(self.str_title)
+        plt.show()
+
+################################ Inputs para simulacion #######################
+inputs = SimulationInputs()
+inputs.rv_type = ric + '| real time '
+inputs.decimals = 5  # Decimales a mostrar
+
+# Calculos y simulacion.
+sim = Simulator(inputs)
+sim.vector = t['return_close'].values # Generar vector
+sim.inputs.size = len(sim.vector)
+sim.str_title = sim.inputs.rv_type
+sim.compute_stats()  # Calcular estadisticas
+sim.plot()  # Graficar
+
+#valores calculados
+rendimiento_diario = sim.mean #calculo de la media
+rendimiento_diario = rendimiento_diario 
+rendimiento_anual = sim.mean * 252 #se calcula de la media anualizada (se multiplica por los dias de mercado 252)
+volatilidad_diaria =sim.volatility #calculo de volatilidad
+volatilidad_diaria = volatilidad_diaria 
+volatilidad_anual = sim.volatility * np.sqrt(252)  #calculo de la volatilidad anualizada
+#volatilidad * raiz (T) o  tambien (volatilidad * 16 (raiz cuadrada de 256 = 16))
+
+
+"para el calculo sharpe" #el cociente debe ser 2 o mayor en una estrategia de inversion.
+#se pide que sea mayor a 2 porque entonces, los rendimientos que se obtienen, van a ser positivos.
+#ya que en 2 todo el intervalo de confianza va ser positivo 
+#( sharpe =  mu / sigma )
+#sharpe mayor a 2 es suponer que los rendimientos son normales 
+#por lo tanto el intervalo de confianza es totalmente positivo
+
+#Segun el despeje:
+
+"mu / sigma >2 "
+"mu > 2 * sigma "
+"mu - 2 sigma > 0 "  #mu - 2 sigma es positivo
+
+#Por lo tanto con el sharpe > 2 ,  el rendimiento que se ofrece es positivo en un 95% de los casos (intervalo de confianza)
+#siendo diferente al calculado anteriormente, que es el de mean * 252 (media anaulizada) , siendo mas la media aproximada
+#sharpe ratio, se usa como parametro para tener mayor precision sobre el rendimiento real, teniendo en cuenta los intervalos de confianza
+#suponiendo que los rendimientos son normales o siguen un movimiento browniano
+
+"""
+Sharpe ratio es el riesgo ajustado de una inversion 
+
+Indica la relacion entre el costo de oportunidad de la relacion riesgo / rendimiento de la inversion
+por cada unidad de riesgo incurrida o volatilidad cuato rendimiento estoy ganando quitando la 
+tasa de los bonos o la libre de riesgo.
+
+"""
+
+
+
+
+
+#se calcula media anualizada /  volatilidad anualizada (sin contemplar tasa libre de riesgo)
+sharpe_ratio = sim.mean * 252 / (sim.volatility*np.sqrt(252))
+sharpe_ratio
+
+#tomando en cuenta la tasa cetes a 28 dias de 7.65%   21/7/25
+risk_free_rate = 0.0765
+sharpe_ratio_rf = ( sim.mean * 252 ) - risk_free_rate  / (sim.volatility*np.sqrt(252))
+sharpe_ratio
+
+#analisis de metricas
+print("Se tiene un rendimiento diario de " , rendimiento_diario * 100, "%")
+print("Se tiene una volatilidad diaria de ", volatilidad_diaria * 100 ,"%")
+print("Tenemos un rendimiento esperado anual aproximado de ", rendimiento_anual *100 ,"%" )
+print("Dada la volatilidad anual del activo en", volatilidad_anual* 100 , "%")
+print("Tenemos un sharpe ratio de ", sharpe_ratio )
+print ("Sharpe ratio teniendo en cuenta la tasa libre de riesgo de ", sharpe_ratio_rf )
+print("Tiene skewness positiva por que la gran mayoria de los dias son positivos")
+print("Tiene media positiva porque las ganancias suelen ser positivas")
+#si la curtosis de la distribucion es mayor a 3 significa que no es normal la distribucion
+print("La curtosis en exceso es positiva, tiene colas muy largas tiene muchas anomalias en cuanto a los precios mas positivos ")
+#este parametro sirve para ver que tan significativa es la media comparada con la volatilidad
+
+sharpe = sharpe_ratio *100
+
+print("Se interpreta por cada unidada de riesgo que se aumenta 1% de volatilidad extra o riesgo, se va ganar un", sharpe_ratio ,"% de rendimiento extra")
+
+
+#se busca que sea mayor a 1 para poder tener un rendimiento arriba del punto de riesgo, justificando el riesgo
+
+#Sharpe de mas de 2 / sea 5 o 10 es excelente entre mayor mejor.
+#porque el intervalo de confianza es mas pequeño por lo que hay mayor certeza sobre la media a largo plazo
+
+#Parametros importantes
+
+#media como parametro de media aproxiamada
+#sharpe ratio como parametro de media real , teniendo en cuenta el intervalo de confianza
+#volatilidad
+
+###############################################################################
+
+#para construir la serie de tiempo , es para el comportamiento del activo de su precio a lo largo del tiempo, no del rendimiento
+# / x =  tiempo (fecha) , y = precio (precio cierre) , grid = para que se vean rallitas en la grafica (True)
+
+plt.figure()
+
+#funcionalidad de dataframe .plot, para graficar diferentes tipos de graficas:
+    #kind = "line", "bar", "hist", "area", "pie", "scatter", "hexbin", "box", "density", "kde"
+t.plot(kind='line', x='date', y='close', grid=True, color='red',
+       label=ric, title='Serie de tiempo de precio cierre ' + ric)
+
+plt.show()
