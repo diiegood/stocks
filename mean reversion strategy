@@ -1,0 +1,167 @@
+
+"""
+Mean Reversion Model Part II 
+"""
+
+import pandas as pd 
+import numpy as np 
+import matplotlib.pyplot as plt 
+import seaborn as sns
+import datetime
+from matplotlib.pyplot import rcParams
+import seaborn as sb
+
+# Estilo de gráficos
+sns.set()
+plt.style.use("dark_background")
+
+# Cargar datos
+datos = "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20GENTERA.csv"
+raw_data = pd.read_csv(datos)
+
+# Nombre del ticker
+ticker = "WALMEX"
+
+# Procesamiento de datos
+t = pd.DataFrame()
+t["date"] = pd.to_datetime(raw_data["Fecha"], dayfirst=True)
+t["close"] = raw_data["Cierre"]
+t = t.sort_values(by="date", ascending=True)
+t["close_previous"] = t["close"].shift(1)
+
+# Calcular rendimiento logarítmico
+t["return_close"] = np.log(t["close"] / t["close_previous"])
+
+# Calcular drawdown
+t["wealth_index"] = 1000 * (1 + t["return_close"]).cumprod()
+t["previous_peaks"] = t["wealth_index"].cummax()
+t["drawdown"] = (t["wealth_index"] - t["previous_peaks"]) / t["previous_peaks"]
+
+# Limpiar datos
+t = t.dropna().reset_index(drop=True)
+numero_datos = t.shape[0]
+t = t.set_index('date')
+
+# Gráfico del precio
+t[['close']].plot(title=f'Gráfico de {ticker}', color="blue", figsize=(12, 6))
+plt.xlabel("Fecha")
+plt.ylabel("Precio de Cierre")
+plt.show()
+
+"Configuracion de medias moviles ajuste de dias" ###############################
+t['SMA'] = t['close'].rolling(window=15).mean() # Calcular media móvil simple de 20 días
+t['simple_returns'] = t['close'].pct_change() # Calcular retornos simples
+t['log_returns'] = np.log(1 + t['simple_returns']) # Calcular retornos logarítmicos
+t["ratios"] = t["close"] / t["SMA"] # Calcular razón precio/media móvil
+
+
+"Configuracion de percentiles"  ###############################################
+t["ratios"].describe()
+percentiles=[5,15,30,50,80,90]
+ratios = t["ratios"].dropna()
+percentile_values = np.percentile(ratios, percentiles)
+percentile_values
+
+
+"Grafica de los ratios de la accion"  #########################################
+
+fig, ax1 = plt.subplots(figsize=(14, 6))
+plt.figure(figsize=(14,6))
+plt.title("Ratios")
+t["ratios"].dropna().plot(legend = True)
+plt.axhline(percentile_values[0], c="darkred", label="5 percentile")
+plt.axhline(percentile_values[1], c="brown", label="15 percentile")
+plt.axhline(percentile_values[2], c="pink", label="30 percentile")
+plt.axhline(percentile_values[3], c="yellow", label="50 percentile")
+plt.axhline(percentile_values[4], c="blue", label="80 percentile")
+plt.axhline(percentile_values[5], c="green", label="90 percentile")
+ax2 = ax1.twinx()
+
+# Graficar el precio de cierre en el eje secundario
+ax2.plot(t["close"], label="Precio de Cierre", color="red", alpha=0.6)
+ax2.set_ylabel("Precio de Cierre", color="red")
+ax2.tick_params(axis='y', labelcolor="red")
+
+# Mostrar leyendas
+fig.legend(loc="upper left", bbox_to_anchor=(0.1, 0.95))
+
+plt.tight_layout()
+plt.show()
+
+###############################################################################
+""""
+          #####################################################################
+Grafica comparando con los precios de cierre y los percentiles  / Opcional
+          #####################################################################
+
+"""
+
+fig, ax1 = plt.subplots(figsize=(14, 6))
+ax1.set_title("Ratios de Medias Moviles 15 dias y cierre de precio")
+ax1.plot(t["ratios"].dropna(), label="Ratios", color="yellow")
+ax1.set_ylabel("Ratios", color="yellow")
+ax1.tick_params(axis='y', labelcolor="yellow")
+ax1.grid(False)
+
+# Líneas de percentiles
+plt.axhline(percentile_values[0], c="darkred", label="5 percentile")
+plt.axhline(percentile_values[1], c="brown", label="15 percentile")
+plt.axhline(percentile_values[2], c="pink", label="30 percentile")
+plt.axhline(percentile_values[3], c="yellow", label="50 percentile")
+plt.axhline(percentile_values[4], c="blue", label="80 percentile")
+plt.axhline(percentile_values[5], c="green", label="90 percentile")
+
+ax2 = ax1.twinx()
+ax2.plot(t["close"], label="Precio de Cierre", color="cyan", alpha=0.6)
+ax2.set_ylabel("Precio de Cierre", color="cyan")
+ax2.tick_params(axis='y', labelcolor="cyan")
+ax2.grid(False)
+plt.show()
+
+
+"Configuracion de compra y venta"  ############################################
+
+sell = percentile_values[-2]  # vender en el percentil 80 / penultimo valor de la lista
+buy = percentile_values[1]   # comprar en el percentil 15
+
+# Crear señales de posición
+t["posiciones"] = np.where(t["ratios"] > sell, -2, np.nan)
+t["posiciones"] = np.where(t["ratios"] < buy, 1, t["posiciones"])
+t["posiciones"] = t["posiciones"].ffill()
+
+# Marcar precios donde se compra o vende
+t["compra"] = np.where(t["posiciones"] == 1, t["close"], np.nan)
+t["venta"] = np.where(t["posiciones"] == -2, t["close"], np.nan)
+
+
+# Graficar
+plt.figure(figsize=(14, 6))
+plt.title("Close Price con Señales de Compra y Venta")
+plt.plot(t["close"], alpha=0.5, label="Precio de Cierre")
+plt.plot(t["SMA"], alpha=0.5, label="Media Móvil (SMA)")
+plt.scatter(t.index, t["compra"], color="green", label="Señal de Compra", marker="^", alpha=1)
+plt.scatter(t.index, t["venta"], color="red", label="Señal de Venta", marker="v", alpha=1)
+plt.xlabel("Fecha")
+plt.ylabel("Precio")
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+###############################################################################
+
+t["rendimiento estrategia"] = t.posiciones.shift(1)*t.log_returns
+t["rendimiento estrategia"]
+
+
+"Se grafica la estrategia acumulativa de rendimientos logaritmicos de la estrategia de reversion a la media"
+
+plt.figure(figsize=(14,6))
+plt.title("Crecimiento de la inversion")
+plt.plot(np.exp(t['log_returns'].dropna()).cumprod(), c="green", label="Comprar y Mantener Strategy")
+plt.plot(np.exp(t["rendimiento estrategia"].dropna()).cumprod(), c="blue", label="Reversion a la media estrategia")
+plt.legend()
+
+print("rendimiento de comprar y mantener el activo", np.exp(t["log_returns"].dropna()).cumprod()[5]-1)
+print("reversion a la media del rendimiento de la estrategia", np.exp(t["rendimiento estrategia"].dropna()).cumprod()[5]-1)
+
+
