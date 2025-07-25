@@ -1,0 +1,178 @@
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+"""
+Modelo VaR para medir el riesgo de portafolio
+"""
+
+#Corregir descargas los datos a la misma fecha para que coincidan
+
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+import warnings
+warnings.simplefilter(action="ignore", category=FutureWarning)
+warnings.simplefilter(action="ignore", category=SettingWithCopyWarning)
+
+# feel free to modify, for example, change the context to "notebook"
+sns.set_theme(context="talk", style="whitegrid",
+              palette="colorblind", color_codes=True,
+              rc={"figure.figsize": [10, 5]})
+
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import quantstats as qs
+from scipy.stats import norm
+from datetime import datetime as dt
+import matplotlib.pyplot as plt
+
+import numpy as np 
+import pandas as pd 
+import matplotlib.pyplot as plt 
+import scipy.stats as st
+import os
+import math 
+import pandas as pd
+from functools import reduce
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+activo_1 = 'GENTERA'  #activo 1  /  servicios financieros 
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20GENTERA.csv"
+
+activo_2 = 'WALMEX'   #activo 2  / consumo frecuente
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20WALMEX.csv"
+
+activo_3 = 'SOXL'     #activo 3  / tecnologia , semiconductores
+# "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20SOXL.csv"
+
+activo_4 = "GFNORTEO"   #activo 4  / sector financiero
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Grupo%20Financiero%20Banorte%20Stock%20Price%20History.csv"
+
+"benchmarks"      #############################################################
+
+"NAFTRAC"   #equity nacional
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20NAFTRACISHRS.csv"
+
+"SPY"   #equity extranjero
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20SPY.csv"
+
+"dolar-peso"
+#"https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20USD_MXN.csv"
+
+#Se cargan las librerias de cada activo en la base de datos
+
+datos_1 = "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Grupo%20Financiero%20Banorte%20Stock%20Price%20History.csv"
+ric_1 = "Banorte" #poner el nombre del activo que se va usar 
+Banorte = pd.read_csv(datos_1)
+Banorte.head()
+Banorte.shape
+Banorte = Banorte[["Date","Price"]]
+Banorte = Banorte.rename(columns={'Date': 'Fecha',
+                                  'Price':'Cierre'})
+Banorte["Fecha"] = pd.to_datetime(Banorte["Fecha"])
+Banorte = Banorte.rename(columns={"Cierre": "Banorte"})
+
+datos_2 = "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20GENTERA.csv"
+ric_2 = "Gentera" #poner el nombre del activo que se va usar 
+Gentera = pd.read_csv(datos_2)
+Gentera.head()
+Gentera.shape
+Gentera= Gentera[["Fecha","Cierre"]]
+Gentera["Fecha"] = pd.to_datetime(Gentera["Fecha"])
+Gentera = Gentera.rename(columns={"Cierre": "Gentera"})
+
+datos_3 = "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20WALMEX.csv"
+ric_3 = "Walmex" #poner el nombre del activo que se va usar 
+Walmex = pd.read_csv(datos_3)
+Walmex.head()
+Walmex.shape
+Walmex = Walmex [["Fecha","Cierre"]]
+Walmex["Fecha"] = pd.to_datetime(Walmex["Fecha"])
+Walmex = Walmex.rename(columns={"Cierre": "Walmex"})
+
+datos_4 = "https://raw.githubusercontent.com/diiegood/stocks/main/data%20assets/Datos%20hist%C3%B3ricos%20SOXL.csv"
+ric_4 = "SOXL" #poner el nombre del activo que se va usar 
+Soxl = pd.read_csv(datos_4)
+Soxl.head()
+Soxl.shape
+Soxl = Soxl[["Fecha","Cierre"]]
+Soxl["Fecha"] = pd.to_datetime(Soxl["Fecha"])
+Soxl = Soxl.rename(columns={"Cierre": "Soxl"})
+
+tamaño_activos = {"Banorte": Banorte.shape,
+                  "Walmex":  Walmex.shape,
+                  "Gentera" : Gentera.shape,
+                  "SOXL":  Soxl.shape}
+
+
+Stocks = [Banorte, Gentera, Walmex, Soxl]
+Portfolio = reduce(lambda left, right: pd.merge(left, right, on='Fecha', how='outer'), Stocks)
+
+
+Portfolio = Portfolio.sort_values(by="Fecha")
+Portfolio.head()
+Portfolio.dropna()
+
+
+
+
+assets.sort()
+
+n_assets=len(assets)
+
+prices_df=pd.DataFrame()
+
+prices_df= yf.download(assets, start=start_date, end=end_date)
+
+prices_df.head().dropna()
+
+prices_df.tail().dropna()
+
+prices_df["Adj Close"].head().dropna()
+
+import cufflinks as cf
+from plotly.offline import iplot, init_notebook_mode
+import plotly.express as px
+import pandas_bokeh
+cf.go_offline()
+pandas_bokeh.output_notebook()
+
+
+prices_df['Adj Close'].iplot()
+
+returns= prices_df['Adj Close'].pct_change().dropna()
+returns
+
+
+returns.iplot()
+
+returns.describe()
+
+log_returns = np.log(prices_df / prices_df.shift(1))['Adj Close']
+log_returns = log_returns.dropna()
+print(log_returns)
+
+
+portfolio_value = 1000000
+weights = np.array([1/len(assets)]*len(assets))
+print(weights) 
+
+historical_returns = (log_returns * weights).sum(axis =1)
+print(historical_returns)
+
+days = 5
+
+#linea 69
+range_returns = historical_returns.rolling(window = days).sum()
+range_returns = range_returns.dropna()
+print(range_returns)
+
+
+
