@@ -1,0 +1,28 @@
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+
+# Ticker individual
+ticker = "WALMEX.MX"
+
+# Fechas: últimos 6 meses desde hoy
+end_date = datetime.today().date()
+start_date = end_date - timedelta(days=180)
+
+# Descargar datos diarios
+df = yf.download(
+    ticker,
+    start=start_date.strftime("%Y-%m-%d"),
+    end=end_date.strftime("%Y-%m-%d"),
+    interval="1d",  # Datos diarios
+    auto_adjust=False,
+    threads=True
+)
+
+# Extraer la columna 'Adj Close'
+adj_close = df['Adj Close'].copy()
+adj_close.name = ticker  # Renombrar la serie para identificar el activo
+adj_close.index.name = "Date"
+
+# Mostrar resultados
+print(adj_close)
