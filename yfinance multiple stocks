@@ -1,0 +1,51 @@
+# Instalación y verificación de versión adecuada
+#!pip install --upgrade yfinance
+
+import yfinance as yf
+import pandas as pd
+from datetime import datetime, timedelta
+import quadprog 
+import numpy as  np
+
+
+# Comprobación de versión
+print("yfinance version:", yf.__version__)
+# IMPORTANTE: debe ser 0.2.54 o superior para evitar errores de rate limit y compatibilidad reciente
+
+# Lista de 10 tickers conocidos
+tickers = ["WALMEX.MX", "ALFAA.MX","KOFUBL.MX","GFNORTEO.MX"]
+
+# Fechas: últimos 6 meses desde hoy
+end_date = datetime.today().date()
+start_date = end_date - timedelta(days=180)
+
+# Descargar datos mensuales de cierre ajustado
+# Nota: usamos auto_adjust=False para que exista la columna 'Adj Close'
+df = yf.download(
+    tickers,
+    start=start_date.strftime("%Y-%m-%d"),
+    end=end_date.strftime("%Y-%m-%d"),
+    interval="1mo",
+    auto_adjust=False,
+    group_by="ticker",
+    threads=True
+)
+
+# Manejo del MultiIndex: extraer 'Adj Close' de cada ticker
+adj_close = pd.DataFrame()
+for ticker in tickers:
+    try:
+        # si MultiIndex: ('Adj Close', ticker) o (ticker, 'Adj Close')
+        if isinstance(df.columns, pd.MultiIndex):
+            adj_close[ticker] = df[ticker]['Adj Close']
+        else:
+            # si no es MultiIndex (caso raro)
+            adj_close[ticker] = df['Adj Close']
+    except Exception:
+        print(f"Advertencia: no se encontró Adj Close para {ticker}")
+
+# Definir índice de fechas
+adj_close.index.name = "Date"
+
+# Mostrar el DataFrame resultante
+print(adj_close)
