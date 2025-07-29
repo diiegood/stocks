@@ -49,3 +49,15 @@ adj_close.index.name = "Date"
 
 # Mostrar el DataFrame resultante
 print(adj_close)
+
+
+
+"""
+Comentario para el codigo : 
+    necesito que actúes como asistente de programacion experto y actualizado.
+    Antes de escribir cualquier linea de codigo realiza una búsqueda en fuentes confiables 
+    como  (Stack Overflow, la documentación oficial del paquete yfinance,
+           issues recientes de Github y otros foros técnicos) 
+    para identificar si ha habido cambios recientes o interrupciones  en la funcionalidad de la libreria
+    yfinance, especialmente relacionados con restricciones de Yahoo Finance o cambios en los endpoints.   Luego con base a esa verificacion genera un codigo en Python compatible con Google Colab, que : instale  y/o importe la libreria de yfinance de forma correcta y actualizada, Crea una lista de 10 empresas conocidas como (por ejemplo: Tesla, Google, Microsoft, Amazon, Apple, etc) Descargue datos mensuales del precio de cierre ajustado (Adj Close) de los últimos 6 meses desde la fecha actual. Organice la información en un DataFrame de Pandas, donde las fechas esten en el indice y las columnas correspondan a los 10 tickers. El objetivo es usar este codigo como ejemplo educativo en un curso por lo tanto asegúrate que sea robusto y facil de ejecutar con Colab. Si hay alguna importante advertencia sobre e uso actual de yfinance, inclúyela de forma de comentario dentro del codigo, no necesito explicación del codigo, solo el codigo comentado y listo para pegar y ejecutar en google colab.
+"""
